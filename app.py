@@ -35,14 +35,12 @@ class Generator(nn.Module):
         )
 
     def forward(self, z, labels):
-        # ノイズとラベル埋め込みを連結
         z = torch.cat([z, self.label_emb(labels)], dim=1)
         img = self.net(z)
         return img.view(-1, 1, 28, 28)
 
 # 学習済みモデルの読み込みをキャッシュ
 @st.cache_resource
-
 def load_generator(path=model_path):
     G = Generator(z_dim, n_classes)
     G.load_state_dict(torch.load(path, map_location="cpu"))
@@ -58,20 +56,22 @@ def main():
 
     if st.sidebar.button("生成"):
         G = load_generator()
-        # ノイズベクトルとラベルを生成
+        # ノイズとラベル
         z = torch.randn(n_imgs, z_dim)
         labels = torch.full((n_imgs,), digit, dtype=torch.long)
 
         with torch.no_grad():
             fake_imgs = G(z, labels)
 
-        # 画素値を [-1,1] から [0,1] に変換
+        # [–1,1] → [0,1]
         imgs = (fake_imgs + 1) / 2
-        # グリッド状にまとめる
+        # グリッド作成
         grid = make_grid(imgs, nrow=n_imgs)
-        # NumPy 配列に変換して表示
+        # NumPy 配列変換
         npimg = grid.mul(255).add(0.5).clamp(0,255).byte().permute(1,2,0).numpy()
-        st.image(npimg, width=56, caption=[str(digit)] * n_imgs)
+        # 幅を画像枚数に応じて設定
+        display_width = 56 * n_imgs
+        st.image(npimg, width=display_width, caption=f"Generated: {digit}")
 
 if __name__ == "__main__":
     main()
