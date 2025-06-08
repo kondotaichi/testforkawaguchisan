@@ -57,20 +57,24 @@ def load_model(path=model_path):
 st.set_page_config(page_title="MNIST CVAE ジェネレータ", layout="wide")
 st.title("MNIST 手書き数字ジェネレータ (VAE)")
 
+# サイドバー入力
 digit = st.sidebar.selectbox("生成する数字", list(range(n_classes)))
 n_imgs = st.sidebar.slider("枚数", 1, 10, 5)
 
+# 生成ボタン
 if st.sidebar.button("生成"):
+    # モデルロード
     model = load_model()
-    # ランダム潜在ベクトル
+    # ランダム潜在ベクトルとラベル
     z = torch.randn(n_imgs, z_dim)
     labels = torch.full((n_imgs,), digit, dtype=torch.long)
+    # 推論
     with torch.no_grad():
-        recon, _, _ = model(z, labels)
-    # [n,784] → [n,28,28]
+        recon = model.decode(z, labels)
+    # 再構築画像を [n,28,28] へ
     imgs = recon.view(-1, 28, 28).numpy()
+    # カラム分割して表示
     cols = st.columns(n_imgs)
     for idx, col in enumerate(cols):
-        # 0-1 の範囲、float → uint8
         img = (imgs[idx] * 255).astype(np.uint8)
         col.image(img, width=56, caption=f"{digit}-{idx}")
