@@ -1,7 +1,6 @@
 import streamlit as st
 import torch
 import torch.nn as nn
-from torchvision.utils import make_grid
 import numpy as np
 
 # ハイパーパラメータ
@@ -36,8 +35,8 @@ class Generator(nn.Module):
 
     def forward(self, z, labels):
         z = torch.cat([z, self.label_emb(labels)], dim=1)
-        img = self.net(z)
-        return img.view(-1, 1, 28, 28)
+        out = self.net(z)
+        return out.view(-1, 1, 28, 28)
 
 # 学習済みモデルの読み込みをキャッシュ
 @st.cache_resource
@@ -56,22 +55,21 @@ def main():
 
     if st.sidebar.button("生成"):
         G = load_generator()
-        # ノイズとラベル
+        # ランダムノイズとラベルを生成
         z = torch.randn(n_imgs, z_dim)
         labels = torch.full((n_imgs,), digit, dtype=torch.long)
 
         with torch.no_grad():
             fake_imgs = G(z, labels)
 
-        # [–1,1] → [0,1]
-        imgs = (fake_imgs + 1) / 2
-        # グリッド作成
-        grid = make_grid(imgs, nrow=n_imgs)
-        # NumPy 配列変換
-        npimg = grid.mul(255).add(0.5).clamp(0,255).byte().permute(1,2,0).numpy()
-        # 幅を画像枚数に応じて設定
-        display_width = 56 * n_imgs
-        st.image(npimg, width=display_width, caption=f"Generated: {digit}")
+        # 出力を [0,1] にスケーリング
+        imgs = ((fake_imgs + 1) / 2).cpu()
+
+        # 画像を列に分けて表示
+        cols = st.columns(n_imgs)
+        for idx, col in enumerate(cols):
+            img = imgs[idx].squeeze().numpy()
+            col.image(img, width=56, caption=f"{digit}-{idx}")
 
 if __name__ == "__main__":
     main()
